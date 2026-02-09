@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AaShruChats Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00A878; --bg: #121212; --card: #1e1e1e; --text: #e0e0e0; --input: #252525; --border: #333;
+        }
+        body.light-mode {
+            --bg: #f0f0f0; --card: #ffffff; --text: #222; --input: #eee; --border: #ccc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; transition: 0.2s ease; }
+        body { background: #000; color: var(--text); display: flex; justify-content: center; height: 100vh; overflow: hidden; }
+        
+        #app { width: 100%; max-width: 400px; height: 100vh; background: var(--bg); position: relative; border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; }
+        .screen { position: absolute; inset: 0; background: var(--bg); z-index: 10; display: none; flex-direction: column; }
+        .active { display: flex !important; }
+
+        /* UI Components */
+        .header { padding: 15px; background: var(--card); display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+        .back-btn { background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; }
+        .content { flex: 1; overflow-y: auto; padding: 15px; }
+        input { background: var(--input); border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 10px; width: 100%; margin-bottom: 15px; outline: none; }
+        .btn { padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; width: 100%; }
+        .btn-p { background: var(--primary); color: white; }
+        
+        /* User List & Chat */
+        .user-row { display: flex; align-items: center; padding: 12px; background: var(--card); border-radius: 12px; margin-bottom: 10px; cursor: pointer; }
+        .dp-circle { width: 45px; height: 45px; border-radius: 50%; background: #000; margin-right: 12px; border: 1px solid var(--border); }
+        #messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 15px; background: rgba(0,0,0,0.05); }
+        .bubble { max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 14px; }
+        .bubble.me { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
+        .bubble.other { align-self: flex-start; background: var(--card); border-bottom-left-radius: 2px; }
+
+        /* Nav */
+        .bottom-nav { height: 65px; background: var(--card); display: flex; justify-content: space-around; align-items: center; border-top: 1px solid var(--border); }
+        .nav-item { font-size: 10px; text-align: center; cursor: pointer; opacity: 0.6; }
+        .nav-item.active { opacity: 1; color: var(--primary); }
+        
+        /* Settings */
+        .settings-card { background: var(--card); padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--card); border-radius: 10px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="scr-auth" class="screen">
+        <div class="content" style="padding-top: 60px;">
+            <h1 style="color: var(--primary);">AaShruChats</h1>
+            <p style="margin-bottom: 30px; opacity: 0.7;">Join the elite circle.</p>
+            <input id="auth-email" type="email" placeholder="Email">
+            <input id="auth-pass" type="password" placeholder="Password">
+            <button class="btn btn-p" onclick="handleAuth('login')">Sign In</button>
+            <button class="btn" style="background:none; color:var(--primary)" onclick="handleAuth('signup')">Create Account</button>
+        </div>
+    </div>
+
+    <div id="scr-setup" class="screen">
+        <div class="header"><b>Setup Profile</b></div>
+        <div class="content">
+            <input id="set-name" placeholder="Full Name">
+            <input id="set-emoji" placeholder="Emoji (e.g. 🦊)">
+            <input id="set-bio" placeholder="Bio">
+            <button class="btn btn-p" onclick="saveProfile()">Start Chatting</button>
+        </div>
+    </div>
+
+    <div id="scr-home" class="screen active">
+        <div class="header">
+            <b style="font-size: 20px; flex: 1;">AaShruChats</b>
+            <button onclick="showScreen('scr-settings')" style="background:none; border:none; font-size:20px;">⚙️</button>
+        </div>
+        <div id="chat-list" class="content"></div>
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="showScreen('scr-home')">CHATS</div>
+            <div class="nav-item" onclick="showScreen('scr-add')">ADD FRIEND</div>
+            <div class="nav-item" onclick="showScreen('scr-req')">REQUESTS <span id="req-dot" style="color:var(--primary)"></span></div>
+        </div>
+    </div>
+
+    <div id="scr-chat" class="screen">
+        <div class="header">
+            <button class="back-btn" onclick="showScreen('scr-home')">←</button>
+            <img id="chat-dp" class="dp-circle" style="width:35px; height:35px;">
+            <div style="flex:1"><b id="chat-name">Name</b><br><small id="chat-status">typing...</small></div>
+        </div>
+        <div id="messages"></div>
+        <div style="padding:15px; background:var(--card); display:flex; gap:10px;">
+            <input id="msg-input" placeholder="Message..." style="margin:0;">
+            <button class="btn btn-p" style="width:70px;" onclick="sendMsg()">Send</button>
+        </div>
+    </div>
+
+    <div id="scr-add" class="screen">
+        <div class="header"><button class="back-btn" onclick="showScreen('scr-home')">←</button><b>Find Friend</b></div>
+        <div class="content">
+            <input id="search-id" placeholder="Enter ID (ar-xxxx)">
+            <button class="btn btn-p" onclick="searchUser()">Send Request</button>
+        </div>
+    </div>
+
+    <div id="scr-req" class="screen">
+        <div class="header"><button class="back-btn" onclick="showScreen('scr-home')">←</button><b>Friend Requests</b></div>
+        <div id="req-list" class="content"></div>
+    </div>
+
+    <div id="scr-settings" class="screen">
+        <div class="header"><button class="back-btn" onclick="showScreen('scr-home')">←</button><b>Settings</b></div>
+        <div class="content">
+            <div class="settings-card">
+                <img id="my-dp" class="dp-circle" style="width:80px; height:80px; margin:0 auto 10px auto; display:block;">
+                <h3 id="my-name">--</h3>
+                <p id="my-id" style="color:var(--primary)">ar-0000</p>
+                <p id="my-bio" style="font-size:12px; margin-top:5px; opacity:0.7"></p>
+            </div>
+            <div class="toggle-row">
+                <span>Dark Mode</span>
+                <input type="checkbox" id="theme-toggle" checked onchange="toggleTheme()" style="width:auto; margin:0;">
+            </div>
+            <button class="btn" style="background:#ff5252; color:white; margin-top:20px;" onclick="logout()">Logout</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+    import { getDatabase, ref, set, get, onValue, push, serverTimestamp, remove } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAeINIjTJC7bQe17cOS_uEfEwwnTtkixqo",
+        authDomain: "aashru-chat.firebaseapp.com",
+        projectId: "aashru-chat",
+        storageBucket: "aashru-chat.firebasestorage.app",
+        messagingSenderId: "1006282937866",
+        appId: "1:1006282937866:web:8119a6fca24de27b4f31f3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    let me = null, activeChat = null;
+    const emojiToSVG = (e) => `data:image/svg+xml;base64,${btoa(`<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100' height='100' fill='black'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='50' fill='white'>${e||'👤'}</text></svg>`)}`;
+
+    window.showScreen = (id) => {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    };
+
+    // --- AUTH & PROFILE ---
+    window.handleAuth = async (t) => {
+        const e = document.getElementById('auth-email').value, p = document.getElementById('auth-pass').value;
+        try { t==='signup' ? await createUserWithEmailAndPassword(auth, e, p) : await signInWithEmailAndPassword(auth, e, p); } catch(err) { alert(err.message); }
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+        if(user) {
+            const snap = await get(ref(db, `users/${user.uid}`));
+            if(snap.exists()) { me = snap.val(); initApp(); } else showScreen('scr-setup');
+        } else showScreen('scr-auth');
+    });
+
+    window.saveProfile = async () => {
+        const n = document.getElementById('set-name').value, e = document.getElementById('set-emoji').value, b = document.getElementById('set-bio').value;
+        if(!n || !e) return alert("Fill all!");
+        me = { uid: auth.currentUser.uid, name: n, userId: `ar-${Math.floor(1000+Math.random()*9000)}`, dpUrl: emojiToSVG(e), bio: b };
+        await set(ref(db, `users/${me.uid}`), me);
+        initApp();
+    };
+
+    window.logout = () => signOut(auth).then(() => location.reload());
+
+    // --- CORE APP ---
+    function initApp() {
+        showScreen('scr-home');
+        document.getElementById('my-name').innerText = me.name;
+        document.getElementById('my-id').innerText = me.userId;
+        document.getElementById('my-bio').innerText = me.bio;
+        document.getElementById('my-dp').src = me.dpUrl;
+        loadChats();
+        listenReq();
+    }
+
+    window.toggleTheme = () => {
+        const isDark = document.getElementById('theme-toggle').checked;
+        document.body.classList.toggle('light-mode', !isDark);
+        localStorage.setItem('mode', isDark ? 'dark' : 'light');
+    };
+
+    // --- FRIEND SYSTEM ---
+    window.searchUser = async () => {
+        const id = document.getElementById('search-id').value;
+        const snap = await get(ref(db, 'users'));
+        let found = false;
+        snap.forEach(u => {
+            if(u.val().userId === id && u.key !== me.uid) {
+                set(ref(db, `requests/${u.key}/${me.uid}`), me);
+                found = true; alert("Request Sent!");
+            }
+        });
+        if(!found) alert("Not found!");
+    };
+
+    function listenReq() {
+        onValue(ref(db, `requests/${me.uid}`), snap => {
+            const list = document.getElementById('req-list'); list.innerHTML = '';
+            document.getElementById('req-dot').innerText = snap.exists() ? `(${Object.keys(snap.val()).length})` : '';
+            snap.forEach(r => {
+                const u = r.val();
+                const div = document.createElement('div'); div.className = 'user-row';
+                div.innerHTML = `<img src="${u.dpUrl}" class="dp-circle"> <div style="flex:1"><b>${u.name}</b></div><button class="btn btn-p" style="width:auto; padding:5px 10px;" onclick="accept('${u.uid}')">Accept</button>`;
+                list.appendChild(div);
+            });
+        });
+    }
+
+    window.accept = (uid) => {
+        set(ref(db, `contacts/${me.uid}/${uid}`), true);
+        set(ref(db, `contacts/${uid}/${me.uid}`), true);
+        remove(ref(db, `requests/${me.uid}/${uid}`));
+    };
+
+    function loadChats() {
+        onValue(ref(db, `contacts/${me.uid}`), snap => {
+            const list = document.getElementById('chat-list'); list.innerHTML = '';
+            snap.forEach(c => {
+                get(ref(db, `users/${c.key}`)).then(uSnap => {
+                    const u = uSnap.val();
+                    const div = document.createElement('div'); div.className = 'user-row';
+                    div.innerHTML = `<img src="${u.dpUrl}" class="dp-circle"> <div><b>${u.name}</b><br><small>${u.userId}</small></div>`;
+                    div.onclick = () => openChat(u);
+                    list.appendChild(div);
+                });
+            });
+        });
+    }
+
+    // --- MESSAGING ---
+    function openChat(user) {
+        activeChat = user;
+        const cid = me.uid < user.uid ? `${me.uid}_${user.uid}` : `${user.uid}_${me.uid}`;
+        document.getElementById('chat-name').innerText = user.name;
+        document.getElementById('chat-dp').src = user.dpUrl;
+        showScreen('scr-chat');
+
+        onValue(ref(db, `messages/${cid}`), snap => {
+            const box = document.getElementById('messages'); box.innerHTML = '';
+            snap.forEach(m => {
+                const d = m.val();
+                const div = document.createElement('div'); div.className = `bubble ${d.s === me.uid ? 'me' : 'other'}`;
+                div.innerText = d.t; box.appendChild(div);
+            });
+            box.scrollTop = box.scrollHeight;
+        });
+    }
+
+    window.sendMsg = () => {
+        const i = document.getElementById('msg-input'); if(!i.value) return;
+        const cid = me.uid < activeChat.uid ? `${me.uid}_${activeChat.uid}` : `${activeChat.uid}_${me.uid}`;
+        push(ref(db, `messages/${cid}`), { s: me.uid, t: i.value }); i.value = '';
+    };
+
+    if(localStorage.getItem('mode') === 'light') {
+        document.body.classList.add('light-mode');
+        document.getElementById('theme-toggle').checked = false;
+    }
+</script>
+</body>
+  </html>
+  
